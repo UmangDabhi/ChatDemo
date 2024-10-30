@@ -3,7 +3,6 @@ const http = require("http");
 const socketIo = require("socket.io");
 const bodyParser = require("body-parser");
 const fs = require("fs");
-const CryptoJS = require("crypto-js");
 const path = require("path"); // Import path module
 
 const app = express();
@@ -19,13 +18,12 @@ const PORT = 5000;
 
 app.use(bodyParser.json());
 
-// Load messages from file and decrypt
+// Load messages from file
 const loadMessages = (roomId) => {
   const filePath = `messages_${roomId}.json`;
   if (fs.existsSync(filePath)) {
     const data = fs.readFileSync(filePath, "utf8");
     const messages = JSON.parse(data);
-
     return messages;
   }
   return [];
@@ -55,8 +53,6 @@ io.on("connection", (socket) => {
       return; // Don't proceed if message is empty
     }
 
-    console.log("Received:", message);
-
     const messages = loadMessages(roomId);
     const newMessage = {
       sender,
@@ -79,11 +75,27 @@ io.on("connection", (socket) => {
   });
 });
 
-console.log(path.join(__dirname, "public"));
+const deleteMessages = (roomId) => {
+  const filePath = `messages_${roomId}.json`;
+  if (fs.existsSync(filePath)) {
+    fs.unlinkSync(filePath);
+    console.log(`Deleted messages for room: ${roomId}`);
+  } else {
+    console.log(`No messages found for room: ${roomId}`);
+  }
+};
+app.get("/deleteTheChat/:roomId", (req, res) => {
+  const roomId = req.params.roomId;
+  deleteMessages(roomId);
+  res.send({ message: `Chat history for room ${roomId} deleted.` });
+});
+
+// Serve static files
 app.use(express.static(path.join(__dirname, "public")));
 app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
+
 // Start the server
 server.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
